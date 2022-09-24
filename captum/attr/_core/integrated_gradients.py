@@ -348,18 +348,37 @@ class IntegratedGradients(GradientAttribution):
         expanded_target = _expand_target(target, n_steps)
 
         # grads: dim -> (bsz * #steps x inputs[0].shape[1:], ...)
-        grads = self.gradient_func(
-            forward_fn=self.forward_func,
-            inputs=scaled_features_tpl,
-            target_ind=expanded_target,
-            additional_forward_args=input_additional_args,
-        )
+
+        grads_list = []
+        for i in range(n_steps):
+            cur_inputs = []
+            for scaled_features in scaled_features_tpl:
+                original_length = scaled_features.shape[0] // n_steps
+                cur_inputs.append(scaled_features[i * original_length : (i+1) * original_length])
+            grads = self.gradient_func(
+                forward_fn=self.forward_func,
+                inputs=cur_inputs,
+                target_ind=expanded_target,
+                additional_forward_args=input_additional_args,
+            )
+            grads = list(grads)
+            for i in range(len(grads)):
+                grads[i] = grads[i].to(torch.device('cpu'))
+            grads_list.append(grads)
+        cat_grads = [[] for _ in grads_list[0]]
+        for grads in grads_list:
+            for i, grad in enumerate(grads):
+                cat_grads[i].append(grad)
+        for i in range(len(cat_grads)):
+            cat_grads[i] = torch.cat(cat_grads[i], dim=0)
+        grads = cat_grads
+
 
         # flattening grads so that we can multilpy it with step-size
         # calling contiguous to avoid `memory whole` problems
         scaled_grads = [
             grad.contiguous().view(n_steps, -1)
-            * torch.tensor(step_sizes).view(n_steps, 1).to(grad.device)
+            * torch.tensor(step_sizes).view(n_steps, 1).to(grad.device).to(torch.float32)
             for grad in grads
         ]
 
