@@ -339,12 +339,7 @@ class FeatureAblation(PerturbationAttribution):
                 if torch.numel(inputs[i]) == 0:
                     continue
 
-                for (
-                    current_inputs,
-                    current_add_args,
-                    current_target,
-                    current_mask,
-                ) in self._ith_input_ablation_generator(
+                ith_input_abalation_generater = self._ith_input_ablation_generator(
                     i,
                     inputs,
                     additional_forward_args,
@@ -353,7 +348,13 @@ class FeatureAblation(PerturbationAttribution):
                     feature_mask,
                     perturbations_per_eval,
                     **kwargs,
-                ):
+                )
+                for (
+                    current_inputs,
+                    current_add_args,
+                    current_target,
+                    current_mask,
+                ) in ith_input_abalation_generater:
                     # modified_eval dimensions: 1D tensor with length
                     # equal to #num_examples * #features in batch
                     modified_eval = _run_forward(

@@ -397,7 +397,7 @@ class IntegratedGradients(GradientAttribution):
             attributions = total_grads
         else:
             attributions = tuple(
-                total_grad * (input - baseline)
+                total_grad * (input - baseline).to(total_grad.device)
                 for total_grad, input, baseline in zip(total_grads, inputs, baselines)
             )
         return attributions
